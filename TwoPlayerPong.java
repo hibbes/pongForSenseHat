@@ -58,6 +58,20 @@ public class TwoPlayerPong {
 
     private final Random random = new Random();
 
+    // ── Punktestand ───────────────────────────────────────────────────────────
+    private int player1Score = 0;
+    private int player2Score = 0;
+
+    // ── Framebuffer ───────────────────────────────────────────────────────────
+    // 8×8-Matrix an RGB565-Werten, die bei jedem updateGame-Durchlauf an das
+    // Sense HAT übertragen wird. Farben: in Java-Byte-Order vorberechnet.
+    private static final int BLACK  = 0x0000;
+    private static final int RED    = 0x0038;
+    private static final int GREEN  = 0xE001;
+    private static final int BLUE   = 0x0E00;
+    private static final int ORANGE = 0xFFE0;
+    private final int[][] pixels = new int[8][8];
+
     /**
      * Initialisiert das Spiel und sucht beide Controller.
      */
@@ -236,8 +250,77 @@ public class TwoPlayerPong {
      * übernommen werden.
      */
     private void updateGame() {
-        // TODO: Framebuffer-Ausgabe wie in PongGame.java implementieren
-        // z.B.: clear(); drawPaddles(); drawBall(); displayPixels();
+        clear();                        // alle LEDs auf Schwarz setzen
+        drawScores();                   // Punkte-LEDs setzen
+        synchronized (paddleLock) {     // Schläger threadsicher lesen
+            drawPaddles();
+        }
+        drawBall();
+        displayPixels();                // Puffer auf /dev/fb0 schreiben
+    }
+
+    /**
+     * Punktestand in den Eckspalten einblenden:
+     * Spieler 1 (Spalte 0, rot), Spieler 2 (Spalte 7, grün).
+     */
+    private void drawScores() {
+        for (int i = 0; i < player1Score && i < 8; i++) {
+            pixels[0][i] = RED;
+        }
+        for (int i = 0; i < player2Score && i < 8; i++) {
+            pixels[7][i] = GREEN;
+        }
+    }
+
+    /** Setzt die Ball-LED (grün). */
+    private void drawBall() {
+        pixels[ballY][ballX] = GREEN;
+    }
+
+    /**
+     * Zeichnet beide 3-Pixel-Schläger. Paddle 1 links (orange), Paddle 2
+     * rechts (blau). Der Bounds-Check verhindert eine
+     * {@link ArrayIndexOutOfBoundsException}, wenn ein Schläger am Rand steht.
+     */
+    private void drawPaddles() {
+        for (int i = 0; i < 3; i++) {
+            if (paddle1Y + i >= 0 && paddle1Y + i <= 7)
+                pixels[paddle1Y + i][0] = ORANGE;
+        }
+        for (int i = 0; i < 3; i++) {
+            if (paddle2Y + i >= 0 && paddle2Y + i <= 7)
+                pixels[paddle2Y + i][7] = BLUE;
+        }
+    }
+
+    /**
+     * Überträgt den Framebuffer auf die LED-Matrix des Sense HAT
+     * (Gerät {@code /dev/fb0}).
+     *
+     * <p>Pro Pixel wird ein 16-Bit-Wort (RGB565) geschrieben. Die Zeilen
+     * werden in umgekehrter Reihenfolge ausgegeben, weil das Sense HAT
+     * seine Zeilen von unten nach oben nummeriert.</p>
+     */
+    private void displayPixels() {
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream("/dev/fb0");
+             java.io.DataOutputStream  os  = new java.io.DataOutputStream(fos)) {
+            for (int row = 7; row >= 0; row--) {
+                for (int col = 0; col < 8; col++) {
+                    os.writeShort(pixels[row][col]);
+                }
+            }
+        } catch (java.io.IOException e) {
+            System.err.println("Framebuffer-Ausgabe fehlgeschlagen: " + e.getMessage());
+        }
+    }
+
+    /** Setzt alle 64 LEDs auf Schwarz. */
+    private void clear() {
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                pixels[r][c] = BLACK;
+            }
+        }
     }
 
     // ── Hilfsmethoden ────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import net.java.games.input.Component;
 import net.java.games.input.Controller;
 import net.java.games.input.ControllerEnvironment;
 
-public class PongGameRef {
+public class PongGameRef_old {
 
     // Farben in Java Byte-Order
     private static final int BLACK = 0x0000, RED = 0x0038, GREEN = 0xE001, BLUE = 0x0E00, ORANGE = 0xFFE0;
@@ -18,7 +18,7 @@ public class PongGameRef {
     private final Controller xboxController;
     private final Object paddleLock = new Object();
 
-    public PongGameRef() {
+    public PongGameRef_old() {
         xboxController = getXboxController();
     }
 
